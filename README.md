@@ -7,7 +7,6 @@
 <p align="center">
   <a href="https://github.com/anuraghazra/github-readme-stats" target="_blank">
   <img src="https://github-readme-stats.vercel.app/api?username=bibinrebo&count_private=true&show_icons=true&hide_title=true&theme=transparent&card_width=400" alt="GitHub Stats" /></a>
-  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=bibinrebo&layout=compact&theme=transparent" alt="Top Languages" /></a>
 </p>
 
 <p align="center">
