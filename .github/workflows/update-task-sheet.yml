@@ -1,0 +1,66 @@
+name: Update Task Sheet
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  update-task-sheet:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update task sheet with commit details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'TASK_SHEET.md';
+            const commits = context.payload.commits || [];
+            const repo = context.payload.repository.full_name;
+
+            let content = '';
+            if (fs.existsSync(path)) {
+              content = fs.readFileSync(path, 'utf8');
+            } else {
+              content = '# Task Sheet\n\n| Date & Time (UTC) | Repository | Commit |\n|---|---|---|\n';
+            }
+
+            const newRows = [];
+            for (const commit of commits) {
+              if (content.includes(commit.id)) {
+                continue;
+              }
+
+              const dateTime = new Date(commit.timestamp).toISOString().replace('T', ' ').replace('Z', ' UTC');
+              const commitLink = `[${commit.id.slice(0, 7)}](${commit.url})`;
+              newRows.push(`| ${dateTime} | ${repo} | ${commitLink} |`);
+            }
+
+            if (newRows.length > 0) {
+              content += `\n${newRows.join('\n')}\n`;
+              fs.writeFileSync(path, content);
+              core.info(`Added ${newRows.length} commit row(s) to ${path}.`);
+            } else {
+              core.info('No new commit rows to add.');
+            }
+
+      - name: Commit and push updates
+        run: |
+          if git diff --quiet TASK_SHEET.md; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TASK_SHEET.md
+          git commit -m "docs: update task sheet [skip ci]"
+          git push
