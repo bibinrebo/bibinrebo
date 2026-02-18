@@ -28,27 +28,32 @@ export async function GET(request: NextRequest) {
   if (includeMerge === 'false') where.isMergeCommit = false;
   if (search) where.messageFull = { contains: search, mode: 'insensitive' };
 
-  const [total, commits, repositories, branches, commitTypes] = await Promise.all([
-    prisma.commit.count({ where }),
-    prisma.commit.findMany({
-      where,
-      orderBy: { committedAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize
-    }),
-    prisma.commit.findMany({ distinct: ['repository'], select: { repository: true } }),
-    prisma.commit.findMany({ distinct: ['branch'], select: { branch: true } }),
-    prisma.commit.findMany({ distinct: ['commitType'], select: { commitType: true } })
-  ]);
+  try {
+    const [total, commits, repositories, branches, commitTypes] = await Promise.all([
+      prisma.commit.count({ where }),
+      prisma.commit.findMany({
+        where,
+        orderBy: { committedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      prisma.commit.findMany({ distinct: ['repository'], select: { repository: true } }),
+      prisma.commit.findMany({ distinct: ['branch'], select: { branch: true } }),
+      prisma.commit.findMany({ distinct: ['commitType'], select: { commitType: true } })
+    ]);
 
-  return NextResponse.json({
-    total,
-    page,
-    pageSize,
-    sortBy,
-    commits,
-    repositories,
-    branches,
-    commitTypes
-  });
+    return NextResponse.json({
+      total,
+      page,
+      pageSize,
+      sortBy,
+      commits,
+      repositories,
+      branches,
+      commitTypes
+    });
+  } catch (error) {
+    console.error('Error fetching commits:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });
+  }
 }
