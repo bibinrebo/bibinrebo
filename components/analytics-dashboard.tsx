@@ -45,6 +45,9 @@ type Commit = {
 };
 
 type Overview = {
+
+  from: string;
+  to: string | null;
   totalCommits: number;
   mostActiveRepository: string;
   mostActiveBranch: string;
@@ -73,6 +76,7 @@ export default function AnalyticsDashboard() {
       commitType: filters.commitType,
       search: filters.search,
       includeMerge: String(filters.includeMerge),
+      sortBy: sortGranularity,
       page: '1',
       pageSize: '200'
     });
@@ -92,7 +96,7 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     void fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.repository, filters.branch, filters.commitType, filters.search, filters.includeMerge]);
+  }, [filters.repository, filters.branch, filters.commitType, filters.search, filters.includeMerge, sortGranularity]);
 
   const columns = useMemo<ColumnDef<Commit>[]>(
     () => [
@@ -124,12 +128,18 @@ export default function AnalyticsDashboard() {
 
 
   const tableData = useMemo(() => {
+    const rank = (date: Date) => {
+      if (sortGranularity === 'year') return date.getUTCFullYear();
+      if (sortGranularity === 'month') return date.getUTCFullYear() * 12 + date.getUTCMonth();
+      return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    };
+
     return [...commits].sort((a, b) => {
       const dateA = new Date(a.committedAt);
       const dateB = new Date(b.committedAt);
-      if (sortGranularity === 'year') return dateB.getFullYear() - dateA.getFullYear();
-      if (sortGranularity === 'month') return (dateB.getFullYear() * 12 + dateB.getMonth()) - (dateA.getFullYear() * 12 + dateA.getMonth());
-      return dateB.toDateString().localeCompare(dateA.toDateString());
+      const diff = rank(dateB) - rank(dateA);
+      if (diff !== 0) return diff;
+      return dateB.getTime() - dateA.getTime();
     });
   }, [commits, sortGranularity]);
 
@@ -163,6 +173,10 @@ export default function AnalyticsDashboard() {
   return (
     <div className="mx-auto min-h-screen max-w-7xl space-y-6 p-6">
       <h1 className="text-3xl font-bold">Commit Analytics Dashboard</h1>
+      <p className="text-sm text-slate-400">
+        Showing data from {new Date(overview.from).toLocaleString()}
+        {overview.to ? ` to ${new Date(overview.to).toLocaleString()}` : ''}
+      </p>
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Metric label="Total Commits" value={overview.totalCommits} />

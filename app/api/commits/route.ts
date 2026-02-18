@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getStartOfCurrentMonthUtc, parseDateOrNull } from '@/lib/date-range';
 
 const querySchema = z.object({
   repository: z.string().optional(),
@@ -9,6 +11,8 @@ const querySchema = z.object({
   search: z.string().optional(),
   includeMerge: z.enum(['true', 'false']).optional(),
   sortBy: z.enum(['day', 'month', 'year', 'latest']).optional().default('latest'),
+  from: z.string().optional(),
+  to: z.string().optional(),
   page: z.coerce.number().optional().default(1),
   pageSize: z.coerce.number().optional().default(20)
 });
@@ -19,8 +23,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { repository, branch, commitType, search, includeMerge, sortBy, page, pageSize } = parsed.data;
-  const where: Record<string, unknown> = {};
+  const { repository, branch, commitType, search, includeMerge, sortBy, from: fromRaw, to: toRaw, page, pageSize } = parsed.data;
+
+  const from = parseDateOrNull(fromRaw ?? null) ?? getStartOfCurrentMonthUtc();
+  const to = parseDateOrNull(toRaw ?? null);
+
+  const committedAtFilter: Prisma.DateTimeFilter = {
+    gte: from,
+    ...(to ? { lte: to } : {})
+  };
+
+  const where: Prisma.CommitWhereInput = {
+    committedAt: committedAtFilter
+  };
 
   if (repository) where.repository = repository;
   if (branch) where.branch = branch;
@@ -37,9 +52,21 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize
       }),
-      prisma.commit.findMany({ distinct: ['repository'], select: { repository: true } }),
-      prisma.commit.findMany({ distinct: ['branch'], select: { branch: true } }),
-      prisma.commit.findMany({ distinct: ['commitType'], select: { commitType: true } })
+      prisma.commit.findMany({
+        where: { ...where, repository: undefined },
+        distinct: ['repository'],
+        select: { repository: true }
+      }),
+      prisma.commit.findMany({
+        where: { ...where, branch: undefined },
+        distinct: ['branch'],
+        select: { branch: true }
+      }),
+      prisma.commit.findMany({
+        where: { ...where, commitType: undefined },
+        distinct: ['commitType'],
+        select: { commitType: true }
+      })
     ]);
 
     return NextResponse.json({
@@ -47,6 +74,8 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       sortBy,
+      from: from.toISOString(),
+      to: to?.toISOString() ?? null,
       commits,
       repositories,
       branches,

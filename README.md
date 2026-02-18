@@ -85,8 +85,8 @@ npm run build
 ## API Endpoints
 
 - `POST /api/webhooks/github` – ingest push commits
-- `GET /api/analytics/overview` – overview metrics + chart series
-- `GET /api/commits` – filterable commit list
+- `GET /api/analytics/overview` – overview metrics + chart series (defaults to current month, accepts `from`/`to` ISO query params)
+- `GET /api/commits` – filterable commit list (defaults to current month, accepts `from`/`to` ISO query params)
 
 ## Troubleshooting
 
